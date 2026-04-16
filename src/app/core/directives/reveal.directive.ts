@@ -31,29 +31,35 @@ export class RevealDirective implements OnInit, OnDestroy {
     const nativeEl = this.el.nativeElement as HTMLElement;
 
     // Set initial hidden state via Renderer2 (no direct DOM style manipulation)
+    // Use will-change for better performance
     this.renderer.setStyle(nativeEl, 'opacity', '0');
     this.renderer.setStyle(nativeEl, 'transform', 'translateY(30px)');
+    this.renderer.setStyle(nativeEl, 'will-change', 'opacity, transform');
     this.renderer.setStyle(
       nativeEl,
       'transition',
       `opacity 0.8s cubic-bezier(0.5, 0, 0, 1) ${this.revealDelay}ms, transform 0.8s cubic-bezier(0.5, 0, 0, 1) ${this.revealDelay}ms`
     );
 
-    this.observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            this.renderer.setStyle(nativeEl, 'opacity', '1');
-            this.renderer.setStyle(nativeEl, 'transform', 'translateY(0)');
-            // Unobserve after animation to save resources
-            this.observer.unobserve(nativeEl);
-          }
-        });
-      },
-      { threshold: 0.15, rootMargin: '0px 0px -50px 0px' }
-    );
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      this.observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              this.renderer.removeStyle(nativeEl, 'will-change');
+              this.renderer.setStyle(nativeEl, 'opacity', '1');
+              this.renderer.setStyle(nativeEl, 'transform', 'translateY(0)');
+              // Unobserve after animation to save resources
+              this.observer.unobserve(nativeEl);
+            }
+          });
+        },
+        { threshold: 0.15, rootMargin: '0px 0px -50px 0px' }
+      );
 
-    this.observer.observe(nativeEl);
+      this.observer.observe(nativeEl);
+    });
   }
 
   ngOnDestroy(): void {
